@@ -49,10 +49,10 @@ func (tc *CfCredhubSSITestCase) BeforeBackup(config Config) {
 	tc.appURL = GetAppUrl(tc.appName)
 	appResponse := Get(tc.appURL + "/create")
 	body := mustReadResponseBody(appResponse)
-	Expect(appResponse.StatusCode).To(Equal(http.StatusCreated), fmt.Sprintf("response body: %s", body))
+	Expect(appResponse.StatusCode).To(Equal(http.StatusCreated), fmt.Sprintf("response body: %s", string(body)))
 
 	appResponse = Get(tc.appURL + "/list")
-	fmt.Sprintf("response body: %s", string(body))
+	body = mustReadResponseBody(appResponse)
 	Expect(appResponse.StatusCode).To(Equal(http.StatusOK), fmt.Sprintf("response body: %s", string(body)))
 	Expect(json.Unmarshal(body, &listResponse)).To(Succeed())
 	Expect(listResponse.Credentials).To(HaveLen(1))
