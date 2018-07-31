@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"path"
 
+	"fmt"
+	"io/ioutil"
+
 	. "github.com/cloudfoundry-incubator/disaster-recovery-acceptance-tests/runner"
 	. "github.com/onsi/gomega"
 )
@@ -45,28 +48,45 @@ func (tc *CfCredhubSSITestCase) BeforeBackup(config Config) {
 
 	tc.appURL = GetAppUrl(tc.appName)
 	appResponse := Get(tc.appURL + "/create")
-	Expect(appResponse.StatusCode).To(Equal(http.StatusCreated))
+	Expect(appResponse.StatusCode).To(Equal(http.StatusCreated), appErrorMessage(appResponse))
 
 	appResponse = Get(tc.appURL + "/list")
+	Expect(appResponse.StatusCode).To(Equal(http.StatusOK), appErrorMessage(appResponse))
 	Expect(json.NewDecoder(appResponse.Body).Decode(&listResponse)).To(Succeed())
 	Expect(listResponse.Credentials).To(HaveLen(1))
 }
 
 func (tc *CfCredhubSSITestCase) AfterBackup(config Config) {
 	appResponse := Get(tc.appURL + "/create")
-	Expect(appResponse.StatusCode).To(Equal(http.StatusCreated))
+	Expect(appResponse.StatusCode).To(Equal(http.StatusCreated), appErrorMessage(appResponse))
 
 	appResponse = Get(tc.appURL + "/list")
+	Expect(appResponse.StatusCode).To(Equal(http.StatusOK), appErrorMessage(appResponse))
 	Expect(json.NewDecoder(appResponse.Body).Decode(&listResponse)).To(Succeed())
 	Expect(listResponse.Credentials).To(HaveLen(2))
 }
 
 func (tc *CfCredhubSSITestCase) AfterRestore(config Config) {
 	appResponse := Get(tc.appURL + "/list")
+	Expect(appResponse.StatusCode).To(Equal(http.StatusOK), appErrorMessage(appResponse))
 	Expect(json.NewDecoder(appResponse.Body).Decode(&listResponse)).To(Succeed())
 	Expect(listResponse.Credentials).To(HaveLen(1))
 }
 
 func (tc *CfCredhubSSITestCase) Cleanup(config Config) {
-	RunCommandSuccessfully("cf delete-org -f acceptance-test-org-" + tc.uniqueTestID)
+	//RunCommandSuccessfully("cf delete-org -f acceptance-test-org-" + tc.uniqueTestID)
+}
+
+func appErrorMessage(response *http.Response) string {
+	defer response.Body.Close()
+
+	var body string
+	bytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		body = fmt.Sprintf("error reading response body: %s", err.Error())
+	} else {
+		body = string(bytes)
+	}
+
+	return fmt.Sprintf("credhub app response body: %s", body)
 }
