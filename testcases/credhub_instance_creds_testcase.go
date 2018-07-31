@@ -48,28 +48,33 @@ func (tc *CfCredhubSSITestCase) BeforeBackup(config Config) {
 
 	tc.appURL = GetAppUrl(tc.appName)
 	appResponse := Get(tc.appURL + "/create")
-	Expect(appResponse.StatusCode).To(Equal(http.StatusCreated), appErrorMessage(appResponse))
+	body := mustReadResponseBody(appResponse)
+	Expect(appResponse.StatusCode).To(Equal(http.StatusCreated), fmt.Sprintf("response body: %s", body))
 
 	appResponse = Get(tc.appURL + "/list")
-	Expect(appResponse.StatusCode).To(Equal(http.StatusOK), appErrorMessage(appResponse))
-	Expect(json.NewDecoder(appResponse.Body).Decode(&listResponse)).To(Succeed())
+	fmt.Sprintf("response body: %s", string(body))
+	Expect(appResponse.StatusCode).To(Equal(http.StatusOK), fmt.Sprintf("response body: %s", string(body)))
+	Expect(json.Unmarshal(body, &listResponse)).To(Succeed())
 	Expect(listResponse.Credentials).To(HaveLen(1))
 }
 
 func (tc *CfCredhubSSITestCase) AfterBackup(config Config) {
 	appResponse := Get(tc.appURL + "/create")
-	Expect(appResponse.StatusCode).To(Equal(http.StatusCreated), appErrorMessage(appResponse))
+	body := mustReadResponseBody(appResponse)
+	Expect(appResponse.StatusCode).To(Equal(http.StatusCreated), fmt.Sprintf("response body: %s", string(body)))
 
 	appResponse = Get(tc.appURL + "/list")
-	Expect(appResponse.StatusCode).To(Equal(http.StatusOK), appErrorMessage(appResponse))
-	Expect(json.NewDecoder(appResponse.Body).Decode(&listResponse)).To(Succeed())
+	body = mustReadResponseBody(appResponse)
+	Expect(appResponse.StatusCode).To(Equal(http.StatusOK), fmt.Sprintf("response body: %s", string(body)))
+	Expect(json.Unmarshal(body, &listResponse)).To(Succeed())
 	Expect(listResponse.Credentials).To(HaveLen(2))
 }
 
 func (tc *CfCredhubSSITestCase) AfterRestore(config Config) {
 	appResponse := Get(tc.appURL + "/list")
-	Expect(appResponse.StatusCode).To(Equal(http.StatusOK), appErrorMessage(appResponse))
-	Expect(json.NewDecoder(appResponse.Body).Decode(&listResponse)).To(Succeed())
+	body := mustReadResponseBody(appResponse)
+	Expect(appResponse.StatusCode).To(Equal(http.StatusOK), fmt.Sprintf("response body: %s", string(body)))
+	Expect(json.Unmarshal(body, &listResponse)).To(Succeed())
 	Expect(listResponse.Credentials).To(HaveLen(1))
 }
 
@@ -77,16 +82,9 @@ func (tc *CfCredhubSSITestCase) Cleanup(config Config) {
 	//RunCommandSuccessfully("cf delete-org -f acceptance-test-org-" + tc.uniqueTestID)
 }
 
-func appErrorMessage(response *http.Response) string {
+func mustReadResponseBody(response *http.Response) []byte {
 	defer response.Body.Close()
-
-	var body string
-	bytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		body = fmt.Sprintf("error reading response body: %s", err.Error())
-	} else {
-		body = string(bytes)
-	}
-
-	return fmt.Sprintf("credhub app response body: %s", body)
+	body, err := ioutil.ReadAll(response.Body)
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("error reading body of response with status code: %d", response.StatusCode))
+	return body
 }
